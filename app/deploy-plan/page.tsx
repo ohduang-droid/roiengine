@@ -3,14 +3,14 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronDown } from "lucide-react"
 
 // FC promises
 import { calculateRoi, recommendPilotSize, type RoiInputs, DEFAULT_CONFIG } from "@/lib/roi"
 
 // Constants
-const PROMISE_CONVERSION_LIFT_PP = DEFAULT_CONFIG.conversionRateGrowth * 100
-const PROMISE_RETENTION_LIFT_PCT = DEFAULT_CONFIG.churnImprovement * 100
+const PROMISE_CONVERSION_LIFT_PP = DEFAULT_CONFIG.conversionUpliftAlpha * 100
+const PROMISE_RETENTION_LIFT_PCT = DEFAULT_CONFIG.churnReductionBeta * 100
 
 function generateTimelineDates() {
   const today = new Date()
@@ -61,7 +61,10 @@ function DeployPlanContent() {
     freeSubscribers,
     arppuMonthlyUsd,
     avgLifetimeMonths,
-    planChoice
+    planChoice,
+    baselineMonthlyConversion: searchParams.get("baselineMonthlyConversion")
+      ? Number(searchParams.get("baselineMonthlyConversion"))
+      : undefined
   }
 
   // Calculate recommended pilot size dynamically
@@ -236,6 +239,48 @@ function DeployPlanContent() {
             ))}
           </div>
         </div>
+
+        {/* Section 4: Financial Breakdown */}
+        <section className="mb-16 space-y-4">
+          <details className="group rounded-xl border bg-card shadow-sm">
+            <summary className="flex cursor-pointer items-center justify-between p-6 text-lg font-semibold">
+              <span>Profit Breakdown</span>
+              <ChevronDown className="h-5 w-5 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t p-6 bg-muted/20">
+              <p className="text-xs text-muted-foreground mb-6">
+                Financial outcomes are evaluated <strong>after usage signals stabilize</strong>.
+              </p>
+              <div className="grid gap-8 sm:grid-cols-3 mb-6">
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Net Gain (Est.)</div>
+                  <div className="text-xl font-bold text-green-700">+${netGainUsd.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">ROI Multiplier</div>
+                  <div className="text-xl font-semibold">{(results.total.roi12m).toFixed(1)}x</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Payback Speed</div>
+                  <div className="text-xl font-semibold">~{paybackMonths} months</div>
+                </div>
+              </div>
+
+              {/* Breakdown: Free vs Paid Earnings */}
+              <div className="grid gap-4 sm:grid-cols-2 pt-4 border-t border-dashed">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">From Growth (Free → Paid):</span>
+                  <span className="font-medium">+${Math.round(results.growth.profit12m).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">From Retention (Saved Users):</span>
+                  <span className="font-medium">+${Math.round(results.retention.profit12m).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </details>
+        </section>
+
       </div>
 
       {/* Sticky footer CTA */}

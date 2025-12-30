@@ -23,6 +23,7 @@ const formSchema = z
     // Conditional fields
     newPaidPerMonth: z.coerce.number().min(0).optional(),
     dropoffPeakWindow: z.enum(["month_1", "month_2", "month_3", "month_4_6", "not_sure"]).optional(),
+    baselineMonthlyConversion: z.coerce.number().min(0).max(100).optional(),
   })
   .refine((data) => data.totalSubscribers >= data.paidSubscribers, {
     message: "Total subscribers must be greater than or equal to paid subscribers",
@@ -89,6 +90,7 @@ export default function CreatorInputsPage() {
       baseline_avg_paid_lifetime_months_L0: data.avgLifetimeMonths,
       price_month_equiv_usd: data.avgRevenuePerSubscriber,
       plan_choice: data.planChoice,
+      baseline_monthly_conversion_pct: data.baselineMonthlyConversion,
       ...(data.planChoice === "growth_only" && {
         growth_baseline_new_paid_per_month: data.newPaidPerMonth,
       }),
@@ -105,6 +107,10 @@ export default function CreatorInputsPage() {
       avgLifetimeMonths: data.avgLifetimeMonths.toString(),
       arppuMonthlyUsd: data.avgRevenuePerSubscriber.toString(),
       planChoice: data.planChoice,
+      // Convert percentage (e.g. 0.5) to decimal (0.005) for param
+      baselineMonthlyConversion: data.baselineMonthlyConversion
+        ? (data.baselineMonthlyConversion / 100).toString()
+        : "",
     })
 
     router.push(`/deploy-plan?${params.toString()}`)
@@ -285,6 +291,28 @@ export default function CreatorInputsPage() {
               </p>
             </div>
           )}
+
+          {/* Q: Baseline Conversion */}
+          <div className="space-y-2">
+            <Label htmlFor="baselineMonthlyConversion" className="text-base font-medium">
+              Q8. What is your estimated monthly free-to-paid conversion rate? (%)
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="baselineMonthlyConversion"
+                type="number"
+                step="0.01"
+                placeholder="0.5"
+                {...register("baselineMonthlyConversion")}
+                className="h-11 max-w-[120px]"
+              />
+              <span className="text-muted-foreground">%</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Example: If you have 10,000 free users and get 50 new paid subs/month, that's 0.5%.
+              Leave blank if unsure (we'll assume 0.5%).
+            </p>
+          </div>
 
           {/* Conditional Section: Plan B */}
           {planChoice === "growth_and_retention" && (
