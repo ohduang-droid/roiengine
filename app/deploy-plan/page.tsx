@@ -3,7 +3,9 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { ArrowLeft, TrendingUp, Repeat, Info } from "lucide-react"
 
 // Fixed constants (Pilot)
 const MAGNET_UNIT_COST_USD = 10
@@ -11,8 +13,8 @@ const DEFAULT_HORIZON_MONTHS = 12
 const DEPLOYMENT_MAGNETS_M = 2000
 
 // FC promises
-const PROMISE_CONVERSION_LIFT_PP = 1 // +1pp
-const PROMISE_RETENTION_LIFT_PCT = 5 // +5%
+const PROMISE_CONVERSION_LIFT_PP = 10 // +10%
+const PROMISE_RETENTION_LIFT_PCT = 2 // +2%
 
 // Calculation functions (mock implementation, to be replaced with real ROI calculations)
 function calculateAllocation(
@@ -98,13 +100,14 @@ function generateTimelineDates() {
   }
 
   return [
-    formatDate(addDays(today, 0)), // Kickoff: today
-    formatDate(addDays(today, 4)), // Design: 4 days
-    formatDate(addDays(today, 9)), // Sampling: 9 days
-    formatDate(addDays(today, 18)), // Production: 18 days
-    formatDate(addDays(today, 32)), // Shipping: 32 days
-    formatDate(addDays(today, 40)), // Rollout: 40 days
-    formatDate(addDays(today, 60)), // First review: 60 days (~2 months)
+    formatDate(addDays(today, 0)), // Step 1: Kickoff: today
+    formatDate(addDays(today, 2)), // Step 2: Asset Handoff: 2 days
+    formatDate(addDays(today, 5)), // Step 3: Link & Flow Validation: 5 days
+    formatDate(addDays(today, 9)), // Step 4: Design Approval: 9 days
+    formatDate(addDays(today, 12)), // Step 5: Sampling (Deposit): 12 days
+    formatDate(addDays(today, 15)), // Step 6: Sample Acceptance: 15 days
+    formatDate(addDays(today, 35)), // Step 7: Mass Production & Shipping: 35 days
+    formatDate(addDays(today, 50)), // Step 8: Delivery received & Final Payment: 50 days
   ]
 }
 
@@ -155,102 +158,128 @@ function DeployPlanContent() {
   const allocationPercentPaid = 100 - allocationPercentFree
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background p-2">
       {/* Back button */}
       <div className="mx-auto max-w-4xl px-4 pt-8 sm:px-6 lg:px-8">
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Edit inputs
         </Button>
       </div>
 
       {/* Main content */}
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        {/* Section 1: Hero - Net Gain */}
-        <div className="mb-16 space-y-8">
-          <div className="rounded-2xl border bg-card p-8 text-center shadow-sm sm:p-12">
-            <div className="mb-3 text-lg font-medium text-muted-foreground">You'll net</div>
-            <div className="mb-2 text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-              +${netGainUsd.toLocaleString()}
-            </div>
-            <div className="mb-6 text-sm text-muted-foreground">Estimated over 12 months, after all costs.</div>
+        {/* Page Title */}
+        <h1 className="mb-12 text-center text-4xl font-bold tracking-tight sm:text-5xl">Deployment Plan</h1>
 
-            {/* Promise KPI cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-lg border bg-card p-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Conversion (free → paid):</span>
-                  <span className="font-semibold">+{PROMISE_CONVERSION_LIFT_PP}pp</span>
-                </div>
-              </div>
-              <div className="rounded-lg border bg-card p-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Retention (paid renewals):</span>
-                  <span className="font-semibold">+{PROMISE_RETENTION_LIFT_PCT}%</span>
-                </div>
-              </div>
+        {/* Section 1: Net Gain */}
+        <div className="mb-16">
+          <div className="rounded-2xl border bg-card p-6 text-center shadow-sm sm:p-8">
+            <div className="mb-2 flex items-center justify-center gap-2 text-base font-medium text-muted-foreground">
+              You'll net
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>12-month projection · base case · measured deployment</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-          </div>
-
-          {/* Small KPIs */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border bg-card p-6 text-center">
-              <div className="mb-1 text-sm font-medium text-muted-foreground">Upfront</div>
-              <div className="mb-1 text-3xl font-bold">${upfrontCostUsd.toLocaleString()}</div>
-              <div className="text-xs text-muted-foreground">
-                {DEPLOYMENT_MAGNETS_M.toLocaleString()} magnets × ${MAGNET_UNIT_COST_USD}
-              </div>
+            <div className="mb-2 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              +${netGainUsd.toLocaleString()} / year
             </div>
-            <div className="rounded-lg border bg-card p-6 text-center">
-              <div className="mb-1 text-sm font-medium text-muted-foreground">Payback</div>
-              <div className="mb-1 text-3xl font-bold">~{paybackMonths} months</div>
-              <div className="text-xs text-muted-foreground">Time to recover investment</div>
-            </div>
+            <div className="text-xs text-muted-foreground">Estimated over 12 months, after all costs.</div>
           </div>
         </div>
 
         {/* Section 2: Recommended Plan */}
-        <div className="mb-16 space-y-6">
-          <h2 className="text-2xl font-semibold">Your recommended plan</h2>
-          <div className="space-y-6 rounded-xl border bg-card p-6 sm:p-8">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <div className="mb-1 text-sm font-medium text-muted-foreground">Total magnets</div>
-                <div className="text-2xl font-semibold">{DEPLOYMENT_MAGNETS_M.toLocaleString()}</div>
+        <div className="mb-16 space-y-4">
+          <h2 className="text-xl font-semibold">Recommanded Plan</h2>
+          {/* Row 1: KPI Cards */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* KPI Card A: Upfront */}
+            <div className="flex flex-col rounded-lg border bg-card p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                Upfront
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>One-time production and deployment cost for the pilot batch.</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <div>
-                <div className="mb-1 text-sm font-medium text-muted-foreground">Plan type</div>
-                <div className="text-2xl font-semibold">{planName}</div>
+              {/* First line: = quantity × unit price */}
+              <div className="mb-2 flex flex-wrap items-baseline gap-1 text-sm">
+                <span className="text-muted-foreground">=</span>
+                <span className="font-semibold">{DEPLOYMENT_MAGNETS_M.toLocaleString()}</span>
+                <span className="text-muted-foreground">magnets ×</span>
+                <span className="font-semibold">${MAGNET_UNIT_COST_USD}</span>
+                <span className="text-muted-foreground">/ magnet</span>
+              </div>
+              {/* Second line: total price */}
+              <div className="text-2xl font-bold tracking-tight">
+                ${upfrontCostUsd.toLocaleString()}
               </div>
             </div>
-
-            {/* Allocation bar */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-foreground">Allocation</span>
-                <span className="text-sm text-muted-foreground">
-                  Free {allocationFree.toLocaleString()} / Paid {allocationPaid.toLocaleString()}
-                </span>
+            
+            {/* KPI Card B: Payback */}
+            <div className="flex flex-col rounded-lg border bg-card p-4">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                Payback
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Estimated time to recover upfront cost if projected effects persist.</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <div className="flex h-8 overflow-hidden rounded-lg border">
+              <div className="mb-1.5 flex-1 text-2xl font-bold tracking-tight">~{paybackMonths} months</div>
+              <div className="text-xs text-muted-foreground">{planName}</div>
+            </div>
+          </div>
+
+          {/* Row 2: Total + Allocation */}
+          <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-1 text-xs font-medium text-muted-foreground">Total magnets</div>
+              <div className="text-xl font-semibold">{DEPLOYMENT_MAGNETS_M.toLocaleString()}</div>
+            </div>
+            <div className="flex-1 sm:px-4">
+              <div className="mb-2 flex items-center gap-1.5 text-xs">
+                <span className="font-medium text-muted-foreground">Allocation</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Asset allocation aims to maximize your goals while controlling cost risks.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex h-6 overflow-hidden rounded-lg border">
                 <div
                   className="flex items-center justify-center bg-purple-500 text-xs font-medium text-white"
                   style={{ width: `${allocationPercentFree}%` }}
                 >
-                  {allocationPercentFree > 15 && `Free User`}
+                  {allocationPercentFree > 15 && `Free User ${allocationFree.toLocaleString()}`}
                 </div>
                 <div
                   className="flex items-center justify-center bg-blue-500 text-xs font-medium text-white"
                   style={{ width: `${allocationPercentPaid}%` }}
                 >
-                  {allocationPercentPaid > 15 && `Paid User`}
+                  {allocationPercentPaid > 15 && `Paid User ${allocationPaid.toLocaleString()}`}
                 </div>
               </div>
-            </div>
-
-            {/* Rationale */}
-            <div className="rounded-lg bg-muted/50 p-4">
-              <div className="text-sm text-muted-foreground">{planRationale}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Based on{" "}
+                {planChoice === "growth_only"
+                  ? `Growth +${PROMISE_CONVERSION_LIFT_PP}% target`
+                  : `Retention +${PROMISE_RETENTION_LIFT_PCT}% target`}
+              </div>
             </div>
           </div>
         </div>
@@ -261,32 +290,36 @@ function DeployPlanContent() {
           <div className="space-y-4">
             {[
               {
-                title: "Kickoff & targeting",
-                description: "Confirm target pools and list criteria.",
+                title: "Kickoff",
+                description: "Confirm quantity, timeline, pricing, points of contact, and communication cadence.",
               },
               {
-                title: "Design final",
-                description: "Finalize the magnet creative.",
+                title: "Asset Handoff",
+                description: "Supplier provides brand assets and content source (link/RSS/page).",
               },
               {
-                title: "Sampling",
-                description: "Approve sample before production.",
+                title: "Link & Flow Validation",
+                description: "FC validates the NFC destination and the subscription/payment flow (including tracking parameters).",
               },
               {
-                title: "Production",
-                description: "Manufacture the pilot batch.",
+                title: "Design Approval",
+                description: "FC delivers design drafts; supplier approves final visuals/copy → version is frozen.",
               },
               {
-                title: "Shipping",
-                description: "Delivery to target audience.",
+                title: "Sampling (Deposit)",
+                description: "Supplier pays the deposit; FC starts sampling and ships the sample.",
               },
               {
-                title: "Rollout",
-                description: "Staggered delivery for measurement.",
+                title: "Sample Acceptance",
+                description: "Supplier confirms \"approved / minor edits needed\" within 48–72 hours (per acceptance criteria).",
               },
               {
-                title: "First review",
-                description: "Review evidence + invoice-aligned outcomes.",
+                title: "Mass Production & Shipping",
+                description: "FC mass produces, QA checks, and ships;",
+              },
+              {
+                title: "Delivery received & Final Payment",
+                description: "Supplier received magnets, and pays the balance after receipt and inspection.",
               },
             ].map((step, index) => (
               <div key={index} className="flex gap-4">
@@ -294,12 +327,14 @@ function DeployPlanContent() {
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background font-semibold text-primary">
                     {index + 1}
                   </div>
-                  {index < 6 && <div className="w-0.5 flex-1 bg-border" />}
+                  {index < 7 && <div className="w-0.5 flex-1 bg-border" />}
                 </div>
                 <div className="flex-1 pb-8">
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="font-semibold">{step.title}</span>
-                    <span className="text-xs font-medium text-muted-foreground">{timelineDates[index]}</span>
+                    {timelineDates[index] && (
+                      <span className="text-xs font-medium text-muted-foreground">{timelineDates[index]}</span>
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">{step.description}</div>
                 </div>
