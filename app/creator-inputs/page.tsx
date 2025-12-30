@@ -177,7 +177,7 @@ export default function CreatorInputsPage() {
             {/* Q4: New paid subscribers per month (optional) */}
             <div className="space-y-2">
               <Label htmlFor="newPaidPerMonth" className="text-base font-medium">
-                Q4. How many new paid subscribers on average do you get? (estimated) <span className="text-destructive">*</span>
+                Q4. What is your average number of new paid subscribers per month? <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="newPaidPerMonth"
