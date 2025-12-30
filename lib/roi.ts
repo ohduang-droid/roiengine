@@ -44,11 +44,11 @@ export interface RoiConfig {
 export const DEFAULT_CONFIG: RoiConfig = {
   grossMargin: 0.8,
   fcShare: 0.10,
-  costPerMagnetUsd: 20, // Updated to $10 per recent spec
+  costPerMagnetUsd: 10, // Updated to $10 per recent spec
 
   // Alpha: FC makes free users "easier to convert"
   // Mapping "conversionRateGrowth" (0.10) to alpha
-  conversionUpliftAlpha: 1,
+  conversionUpliftAlpha: 0.5,
 
   // Beta: FC makes paid users "harder to churn"
   // Mapping "churnImprovement" (0.10) to beta
@@ -197,7 +197,7 @@ export function calculateRoi(inputs: RoiInputs, config: RoiConfig = DEFAULT_CONF
 
   // Simulation Loop
   // We run for 24 months to capture payback that might happen in Year 2
-  const SIMULATION_MONTHS = 24
+  const SIMULATION_MONTHS = 60
   const flows: DailyCashflow[] = []
 
   let cumulativeNetGain = -pilotCost
@@ -243,7 +243,7 @@ export function calculateRoi(inputs: RoiInputs, config: RoiConfig = DEFAULT_CONF
 
     const gpGrowth_t = deltaPaid_t * K
 
-    if (t <= 12) {
+    if (t <= horizonMonths) {
       sumGrowthProfit12m += gpGrowth_t
       sumNewPaidUsers12m += deltaPaid_t
     }
@@ -266,7 +266,7 @@ export function calculateRoi(inputs: RoiInputs, config: RoiConfig = DEFAULT_CONF
 
     const gpRetention_t = deltaAlive_t * K
 
-    if (t <= 12) {
+    if (t <= horizonMonths) {
       sumRetentionProfit12m += gpRetention_t
       sumExtraMonths12m += deltaAlive_t // Summing "extra user-months"
     }

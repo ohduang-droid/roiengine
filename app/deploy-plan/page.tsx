@@ -7,81 +7,14 @@ import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ArrowLeft, TrendingUp, Repeat, Info, FileDown } from "lucide-react"
 import jsPDF from "jspdf"
+import { calculateRoi, RoiInputs, DEFAULT_CONFIG } from "@/lib/roi"
 
 // Fixed constants (Pilot)
-const MAGNET_UNIT_COST_USD = 10
-const DEFAULT_HORIZON_MONTHS = 12
 const DEPLOYMENT_MAGNETS_M = 2000
 
-// FC promises
+// FC promises (Display only)
 const PROMISE_CONVERSION_LIFT_PP = 10 // +10%
 const PROMISE_RETENTION_LIFT_PCT = 2 // +2%
-
-// Calculation functions (mock implementation, to be replaced with real ROI calculations)
-function calculateAllocation(
-  planChoice: string,
-  totalMagnets: number,
-  paidSubscribers: number,
-  freeSubscribers: number,
-) {
-  let allocationFree: number
-  let allocationPaid: number
-
-  if (planChoice === "growth_only") {
-    // Growth only: 75% to free, 25% to paid
-    allocationFree = Math.round(totalMagnets * 0.75)
-    allocationPaid = totalMagnets - allocationFree
-  } else {
-    // Growth + Retention: 75% to paid, 25% to free
-    allocationPaid = Math.round(totalMagnets * 0.75)
-    allocationFree = totalMagnets - allocationPaid
-  }
-
-  // Apply guardrails
-  if (allocationPaid > paidSubscribers) {
-    const excess = allocationPaid - paidSubscribers
-    allocationPaid = paidSubscribers
-    allocationFree = Math.min(allocationFree + excess, freeSubscribers)
-  }
-
-  if (allocationFree > freeSubscribers) {
-    const excess = allocationFree - freeSubscribers
-    allocationFree = freeSubscribers
-    allocationPaid = Math.min(allocationPaid + excess, paidSubscribers)
-  }
-
-  return { allocationFree, allocationPaid }
-}
-
-function calculateROI(
-  paidSubscribers: number,
-  avgLifetimeMonths: number,
-  arppuMonthlyUsd: number,
-  planChoice: string,
-  totalMagnets: number,
-) {
-  // Mock calculation - replace with real formula
-  const upfrontCost = totalMagnets * MAGNET_UNIT_COST_USD
-
-  // Simple estimation: conversion lift + retention lift effects
-  const baseMonthlyRevenue = paidSubscribers * arppuMonthlyUsd
-  const conversionLiftRevenue =
-    paidSubscribers * PROMISE_CONVERSION_LIFT_PP * 0.01 * arppuMonthlyUsd * DEFAULT_HORIZON_MONTHS
-  const retentionLiftRevenue =
-    planChoice === "growth_and_retention"
-      ? baseMonthlyRevenue * (PROMISE_RETENTION_LIFT_PCT / 100) * (DEFAULT_HORIZON_MONTHS / 2)
-      : 0
-
-  const totalRevenueLift = conversionLiftRevenue + retentionLiftRevenue
-  const netGainUsd = Math.round(totalRevenueLift - upfrontCost)
-  const paybackMonths = upfrontCost > 0 ? upfrontCost / (totalRevenueLift / DEFAULT_HORIZON_MONTHS) : 0
-
-  return {
-    upfrontCostUsd: upfrontCost,
-    netGainUsd,
-    paybackMonths: Math.round(paybackMonths * 10) / 10, // 1 decimal place
-  }
-}
 
 function generateTimelineDates() {
   const today = new Date()
@@ -125,23 +58,48 @@ function DeployPlanContent() {
 
   const freeSubscribers = Math.max(0, totalSubscribers - paidSubscribers)
 
-  // Calculate allocation
-  const { allocationFree, allocationPaid } = calculateAllocation(
-    planChoice,
-    DEPLOYMENT_MAGNETS_M,
+  // Use shared ROI calculation
+  const roiInputs: RoiInputs = {
+    totalMagnets: DEPLOYMENT_MAGNETS_M,
     paidSubscribers,
     freeSubscribers,
-  )
-
-  // Calculate ROI metrics
-  const { upfrontCostUsd, netGainUsd, paybackMonths } = calculateROI(
-    paidSubscribers,
-    avgLifetimeMonths,
     arppuMonthlyUsd,
+    avgLifetimeMonths,
     planChoice,
-    DEPLOYMENT_MAGNETS_M,
-  )
+    // baselineMonthlyConversion: undefined // use default
+  }
 
+  // Adaptive Horizon Logic
+  // 1. Try 12 months (default)
+  let effectiveHorizon = 12
+  let roiResults = calculateRoi({ ...roiInputs, horizonChoice: 12 } as any) // Type assertion if needed, but calculateRoi uses config
+
+  // 2. If negative, try 24 or 36
+  if (roiResults.total.netGain12m < 0) {
+    // If payback is reasonable but > 12 months, show longer horizon
+    // Heuristic: If payback is < 24m, show 24m view. If > 24m, show 36m view.
+    // Note: paybackMonths from first run might be 0/undefined if never profitable in 24m limit (old limit)
+    // but we updated limit to 60m, so we should get a valid payback if it's within 5 years.
+
+    const pb = roiResults.total.paybackMonths
+    if (pb > 0 && pb <= 24) {
+      effectiveHorizon = 24
+    } else {
+      effectiveHorizon = 36
+    }
+
+    // Recalculate with new horizon
+    // We need to pass horizonMonths to config? calculateRoi takes inputs and config.
+    // roi.ts:DEFAULT_CONFIG has horizonMonths. We need to override it.
+    roiResults = calculateRoi(roiInputs, { ...DEFAULT_CONFIG, horizonMonths: effectiveHorizon })
+  }
+
+  const {
+    allocation: { free: allocationFree, paid: allocationPaid },
+    total: { pilotCost: upfrontCostUsd, netGain12m: netGainUsd, paybackMonths },
+  } = roiResults
+
+  const MAGNET_UNIT_COST_USD = DEFAULT_CONFIG.costPerMagnetUsd
   const timelineDates = generateTimelineDates()
 
   const handleStartPilot = () => {
@@ -217,7 +175,7 @@ function DeployPlanContent() {
     // Executive Summary
     addText("Executive Summary", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("What this is", 14, true)
     yPos += sectionSpacing
     addText("This document outlines a pilot deployment plan to test the impact of physical NFC magnets on subscription-driven businesses.", 11)
@@ -231,33 +189,33 @@ function DeployPlanContent() {
     addText("This is not a guaranteed ROI program, but a controlled experiment with defined cost, scope, and review points.", 11, true)
     yPos += sectionSpacing * 2
 
-    addText("Key numbers (12-month base case)", 14, true)
+    addText("Key numbers (" + (effectiveHorizon / 12) + "-Year base case)", 14, true)
     yPos += sectionSpacing
-    addBullet(`Estimated net impact: ${netGainUsd >= 0 ? "+" : ""}$${netGainUsd.toLocaleString()} / year`, 11)
+    addBullet(`Estimated net impact: ${netGainUsd >= 0 ? "+" : ""}$${netGainUsd.toLocaleString()} / ${effectiveHorizon === 12 ? "Year" : (effectiveHorizon / 12) + " Years"}`, 11)
     addBullet(`Upfront investment: $${upfrontCostUsd.toLocaleString()}`, 11)
     addBullet(`Estimated payback period: ~${paybackMonths} months`, 11)
     yPos += sectionSpacing
-    addText("These figures reflect a base-case projection over the first 12 months, assuming current pricing and billing cadence remain unchanged.", 10, false, [100, 100, 100])
+    addText("These figures reflect a base-case projection over the first " + (effectiveHorizon / 12) + (effectiveHorizon === 12 ? " Year" : " Years") + ", assuming current pricing and billing cadence remain unchanged.", 10, false, [100, 100, 100])
     yPos += sectionSpacing * 3
 
     // Why this pilot exists
     addText("Why this pilot exists", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("The subscription problem FC is addressing", 14, true)
     yPos += sectionSpacing
     addText("Content subscriptions rarely fail due to content quality.", 11)
     yPos += lineHeight
     addText("They fail because value fades between sessions.", 11, true)
     yPos += sectionSpacing * 2
-    
+
     addText("Common patterns we observe:", 11, true)
     yPos += sectionSpacing
     addBullet("Users intend to return, but forget", 11)
     addBullet("Paid subscribers feel less perceived value before renewal", 11)
     addBullet("Most touchpoints are ephemeral (inbox, feeds, notifications)", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("FC's core hypothesis is simple:", 11, true)
     yPos += sectionSpacing
     addText("Persistent physical touchpoints can extend content recall and subscription intent over time.", 11, true)
@@ -268,7 +226,7 @@ function DeployPlanContent() {
     // What is being deployed
     addText("What is being deployed", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("Deployment scope", 14, true)
     yPos += sectionSpacing
     addBullet(`Total magnets: ${DEPLOYMENT_MAGNETS_M.toLocaleString()}`, 11)
@@ -277,7 +235,7 @@ function DeployPlanContent() {
     yPos += sectionSpacing
     addText("This quantity is selected to balance signal strength and cost efficiency for an initial deployment.", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("Allocation logic", 14, true)
     yPos += sectionSpacing
     // Table header
@@ -294,7 +252,7 @@ function DeployPlanContent() {
     doc.setDrawColor(200, 200, 200)
     doc.line(margin, yPos - 5, pageWidth - margin, yPos - 5)
     yPos += lineHeight
-    
+
     // Table rows
     doc.setFont("helvetica", "normal")
     if (yPos > pageHeight - 20) {
@@ -305,7 +263,6 @@ function DeployPlanContent() {
     doc.text(allocationFree.toLocaleString(), margin + 60, yPos)
     doc.text("Test incremental conversion into paid subscriptions", margin + 100, yPos)
     yPos += lineHeight * 1.5
-    
     if (yPos > pageHeight - 20) {
       doc.addPage()
       yPos = 20
@@ -314,14 +271,14 @@ function DeployPlanContent() {
     doc.text(allocationPaid.toLocaleString(), margin + 60, yPos)
     doc.text("Observe early renewal and engagement signals", margin + 100, yPos)
     yPos += sectionSpacing * 2
-    
+
     addText("This allocation prioritizes growth signal clarity while limiting exposure during the pilot phase.", 11)
     yPos += sectionSpacing * 3
 
     // Plan choice
     addText("Plan choice", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText(planName, 14, true)
     yPos += sectionSpacing
     if (planChoice === "growth_only") {
@@ -344,25 +301,25 @@ function DeployPlanContent() {
     // How the projection is calculated
     addText("How the projection is calculated (high-level)", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("The projected impact is derived from three factors only:", 11, true)
     yPos += sectionSpacing * 2
-    
+
     addText("1. Incremental paid subscribers", 11, true)
     yPos += lineHeight
     addText("   Driven by NFC-enabled engagement and conversion behavior", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("2. Early signals of extended subscriber lifetime", 11, true)
     yPos += lineHeight
     addText("   Observed through repeat interaction and renewal-adjacent actions", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("3. Minus total program cost", 11, true)
     yPos += lineHeight
     addText("   Including magnet production and deployment", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("All other variables remain constant:", 11, true)
     yPos += sectionSpacing
     addBullet("Pricing", 11)
@@ -375,10 +332,10 @@ function DeployPlanContent() {
     // Timeline
     addText("Timeline: What happens after kickoff", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("Deployment timeline", 14, true)
     yPos += sectionSpacing
-    
+
     const timelineSteps = [
       { title: "Kickoff", desc: "Confirm quantity, timeline, pricing, points of contact, and communication cadence." },
       { title: "Asset handoff", desc: "Brand assets and content source (link / RSS / page)." },
@@ -389,7 +346,7 @@ function DeployPlanContent() {
       { title: "Mass production & shipping", desc: "" },
       { title: "Delivery & final payment", desc: "" },
     ]
-    
+
     timelineSteps.forEach((step, index) => {
       if (timelineDates[index]) {
         addText(`${index + 1}. ${step.title} — ${timelineDates[index]}`, 11, true)
@@ -405,19 +362,19 @@ function DeployPlanContent() {
     // Measurement & review
     addText("Measurement & review", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("How success is evaluated", 14, true)
     yPos += sectionSpacing
     addText("This pilot is designed to generate directional clarity, not vanity metrics.", 11, true)
     yPos += sectionSpacing * 2
-    
+
     addText("Signals reviewed include:", 11, true)
     yPos += sectionSpacing
     addBullet("NFC activation behavior", 11)
     addBullet("Return visits and follow-up actions", 11)
     addBullet("Subscription-adjacent events", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("Initial signals are reviewed after rollout to determine:", 11, true)
     yPos += sectionSpacing
     addBullet("Whether effects are observable", 11)
@@ -428,7 +385,7 @@ function DeployPlanContent() {
     // Incentive alignment & risk posture
     addText("Incentive alignment & risk posture", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("Incentive alignment", 14, true)
     yPos += sectionSpacing
     addText("FC benefits only when subscriber behavior improves.", 11, true)
@@ -437,7 +394,7 @@ function DeployPlanContent() {
     yPos += lineHeight
     addText("Commercial terms beyond the pilot are discussed after validation, not before.", 11)
     yPos += sectionSpacing * 2
-    
+
     addText("Risk posture", 14, true)
     yPos += sectionSpacing
     addBullet("Outcomes may underperform projections", 11)
@@ -450,7 +407,7 @@ function DeployPlanContent() {
     // Decision & next step
     addText("Decision & next step", 18, true)
     yPos += sectionSpacing * 2
-    
+
     addText("If this approach aligns", 14, true)
     yPos += sectionSpacing
     addText("The next step is intentionally simple:", 11)
@@ -462,7 +419,7 @@ function DeployPlanContent() {
     yPos += sectionSpacing * 2
     addText("We're happy to walk through assumptions, methodology, or open questions before you decide.", 11)
     yPos += sectionSpacing * 3
-    
+
     addText("Prepared by", 12, true)
     yPos += lineHeight
     addText("Fridge Channel (FC)", 12)
@@ -506,14 +463,14 @@ function DeployPlanContent() {
                   <Info className="h-4 w-4 cursor-help text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>12-month projection · base case · measured deployment</p>
+                  <p>{effectiveHorizon / 12}-Year projection · base case · measured deployment</p>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div className="mb-2 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              +${netGainUsd.toLocaleString()} / year
+              +${netGainUsd.toLocaleString()} / {effectiveHorizon === 12 ? "Year" : `${effectiveHorizon / 12} Years`}
             </div>
-            <div className="text-xs text-muted-foreground">Estimated over 12 months, after all costs.</div>
+            <div className="text-xs text-muted-foreground">Estimated over {effectiveHorizon / 12} {effectiveHorizon === 12 ? "Year" : "Years"}, after all costs.</div>
           </div>
         </div>
 
@@ -548,7 +505,7 @@ function DeployPlanContent() {
                 ${upfrontCostUsd.toLocaleString()}
               </div>
             </div>
-            
+
             {/* KPI Card B: Payback */}
             <div className="flex flex-col rounded-lg border bg-card p-4">
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
