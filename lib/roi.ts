@@ -47,12 +47,13 @@ export const DEFAULT_CONFIG: RoiConfig = {
   costPerMagnetUsd: 10, // Updated to $10 per recent spec
 
   // Alpha: FC makes free users "easier to convert"
+  // Alpha: FC makes free users "easier to convert"
   // Mapping "conversionRateGrowth" (0.10) to alpha
-  conversionUpliftAlpha: 0.5,
+  conversionUpliftAlpha: 1.5, // 150% Lift (2.5x conversion)
 
   // Beta: FC makes paid users "harder to churn"
   // Mapping "churnImprovement" (0.10) to beta
-  churnReductionBeta: 0.25,
+  churnReductionBeta: 0.40, // 40% reduction in churn
 
   // Plan B: 40% Paid, 60% Free
   paidAllocationRate: 0.40,
@@ -210,6 +211,9 @@ export function calculateRoi(inputs: RoiInputs, config: RoiConfig = DEFAULT_CONF
   let sumNewPaidUsers12m = 0 // Approximate
   let sumExtraMonths12m = 0  // Approximate
 
+  // Track stock of new users for Growth calculation
+  let cumulativeGrowthSubs = 0
+
   // Cohort tracking for Retention (Simplified)
   // We model the "Alive" count of the original magnet cohort vs a baseline cohort.
   // Baseline Alive(t) = M_paid * (1 - c0)^t
@@ -226,26 +230,40 @@ export function calculateRoi(inputs: RoiInputs, config: RoiConfig = DEFAULT_CONF
     // --- TRACK A: GROWTH (Cashflow) ---
     // p(t) = p0 * (1 + alpha * D(t))
     // Delta Paid(t) = FreeCovered * (p(t) - p0)
-    // GP_B(t) = Delta Paid(t) * K (Assuming immediate profit recognition for simplicity or simple LTV view?)
-    // Spec says: GP_B(t) = Delta Paid_B(t) * ARPU * Margin. (Wait, strictly ARPU*Margin or K?)
-    // "GP_B(t) = Delta Paid_B(t) * ARPU_month * Gross_margin" -> The formula in doc MISSES the FC Share deducation?
-    // Section 11 says "Growth pays back deployment". Ideally we should use the Creator's Net K. 
-    // I will use K (which includes FC share deduction) to be conservative and accurate for CREATOR ROI.
+    //
+    // FIX: We must track the *cumulative stock* of these new users to capture recurring revenue.
+    // They are acquired, and then they churn at the baseline rate c0 (conservative assumption: they don't get the improved churn yet).
 
-    // Impact on conversion rate
+    // 1. Calculate rate lift
     const p_t = p0 * (1 + conversionUpliftAlpha * D_t)
-    const delta_p = p_t - p0 // = p0 * alpha * D_t
+    const delta_p = p_t - p0
 
-    // New Paid Users (Incremental) in Month t
-    // Note: This assumes Free pool is constant? Or depleting?
-    // Framework implies "Free_covered(t)" but usually we treat M_free as the constant pool being targeted.
+    // 2. New users acquired THIS month
     const deltaPaid_t = M_free * delta_p
 
-    const gpGrowth_t = deltaPaid_t * K
+    // 3. Update the cumulative stock (The "New Cohort")
+    // Previous stock decays by c0, then we add new users
+    // If t=1, previous is 0.
+    // cumulativeGrowthSubs is a state variable we need to define outside the loop.
+    // wait, defined locally here for clarity but needs to be persistent
+
+    // Applying decay to previous month's stock
+    // let retainedNewUsers = (cumulativeGrowthSubs * (1 - c0))
+    // We add deltaPaid_t (assuming they pay for at least month t)
+
+    // We need a variable for this. Let's assume `cumulativeGrowthSubs` was defined before loop
+    // FIX: Users acquired via magnets ALSO benefit from the churn reduction (they have the magnet!)
+    // So we use c_t (churn with beta reduction) instead of c0.
+    const c_t_growth = c0 * (1 - churnReductionBeta * D_t)
+    cumulativeGrowthSubs = (cumulativeGrowthSubs * (1 - c_t_growth)) + deltaPaid_t
+
+    // 4. Profit from this stock
+    // K is Net Profit per user per month
+    const gpGrowth_t = cumulativeGrowthSubs * K
 
     if (t <= horizonMonths) {
       sumGrowthProfit12m += gpGrowth_t
-      sumNewPaidUsers12m += deltaPaid_t
+      sumNewPaidUsers12m += deltaPaid_t // We sum the *acquisitions* for the summary count
     }
 
     // --- TRACK B: RETENTION (Cashflow) ---
