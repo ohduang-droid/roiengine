@@ -199,8 +199,8 @@ function DeployPlanContent() {
       })
     }
 
-    // Page 1: Cover
-    yPos = 50
+    // Cover
+    yPos = 40
     addText("FC Deployment Plan", 24, true)
     yPos += sectionSpacing * 2
     addText("A measured pilot for subscriber growth", 16, true)
@@ -212,10 +212,9 @@ function DeployPlanContent() {
     addText(`Date: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, 12)
     yPos += sectionSpacing * 3
     addText("A structured experiment to test whether physical NFC touchpoints can drive measurable subscription outcomes.", 11, false, [100, 100, 100])
+    yPos += sectionSpacing * 3
 
-    // Page 2: Executive Summary
-    doc.addPage()
-    yPos = 20
+    // Executive Summary
     addText("Executive Summary", 18, true)
     yPos += sectionSpacing * 2
     
@@ -239,10 +238,9 @@ function DeployPlanContent() {
     addBullet(`Estimated payback period: ~${paybackMonths} months`, 11)
     yPos += sectionSpacing
     addText("These figures reflect a base-case projection over the first 12 months, assuming current pricing and billing cadence remain unchanged.", 10, false, [100, 100, 100])
+    yPos += sectionSpacing * 3
 
-    // Page 3: Why this pilot exists
-    doc.addPage()
-    yPos = 20
+    // Why this pilot exists
     addText("Why this pilot exists", 18, true)
     yPos += sectionSpacing * 2
     
@@ -265,10 +263,9 @@ function DeployPlanContent() {
     addText("Persistent physical touchpoints can extend content recall and subscription intent over time.", 11, true)
     yPos += sectionSpacing
     addText("This pilot exists to test that hypothesis under real operating conditions.", 11)
+    yPos += sectionSpacing * 3
 
-    // Page 4: What is being deployed
-    doc.addPage()
-    yPos = 20
+    // What is being deployed
     addText("What is being deployed", 18, true)
     yPos += sectionSpacing * 2
     
@@ -286,6 +283,10 @@ function DeployPlanContent() {
     // Table header
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
+    if (yPos > pageHeight - 20) {
+      doc.addPage()
+      yPos = 20
+    }
     doc.text("Segment", margin, yPos)
     doc.text("Quantity", margin + 60, yPos)
     doc.text("Purpose", margin + 100, yPos)
@@ -296,21 +297,28 @@ function DeployPlanContent() {
     
     // Table rows
     doc.setFont("helvetica", "normal")
+    if (yPos > pageHeight - 20) {
+      doc.addPage()
+      yPos = 20
+    }
     doc.text("Free users", margin, yPos)
     doc.text(allocationFree.toLocaleString(), margin + 60, yPos)
     doc.text("Test incremental conversion into paid subscriptions", margin + 100, yPos)
     yPos += lineHeight * 1.5
     
+    if (yPos > pageHeight - 20) {
+      doc.addPage()
+      yPos = 20
+    }
     doc.text("Paid users", margin, yPos)
     doc.text(allocationPaid.toLocaleString(), margin + 60, yPos)
     doc.text("Observe early renewal and engagement signals", margin + 100, yPos)
     yPos += sectionSpacing * 2
     
     addText("This allocation prioritizes growth signal clarity while limiting exposure during the pilot phase.", 11)
+    yPos += sectionSpacing * 3
 
-    // Page 5: Plan choice
-    doc.addPage()
-    yPos = 20
+    // Plan choice
     addText("Plan choice", 18, true)
     yPos += sectionSpacing * 2
     
@@ -331,10 +339,9 @@ function DeployPlanContent() {
       yPos += sectionSpacing
       addText(planRationale, 11)
     }
+    yPos += sectionSpacing * 3
 
-    // Page 6: How the projection is calculated
-    doc.addPage()
-    yPos = 20
+    // How the projection is calculated
     addText("How the projection is calculated (high-level)", 18, true)
     yPos += sectionSpacing * 2
     
@@ -363,10 +370,9 @@ function DeployPlanContent() {
     addBullet("Existing content strategy", 11)
     yPos += sectionSpacing
     addText("This keeps the pilot focused, measurable, and falsifiable.", 10, false, [100, 100, 100])
+    yPos += sectionSpacing * 3
 
-    // Page 7: Timeline
-    doc.addPage()
-    yPos = 20
+    // Timeline
     addText("Timeline: What happens after kickoff", 18, true)
     yPos += sectionSpacing * 2
     
@@ -394,10 +400,9 @@ function DeployPlanContent() {
         yPos += sectionSpacing
       }
     })
+    yPos += sectionSpacing * 2
 
-    // Page 8: Measurement & review
-    doc.addPage()
-    yPos = 20
+    // Measurement & review
     addText("Measurement & review", 18, true)
     yPos += sectionSpacing * 2
     
@@ -418,10 +423,9 @@ function DeployPlanContent() {
     addBullet("Whether effects are observable", 11)
     addBullet("Whether adjustments are warranted", 11)
     addBullet("Whether a scaled deployment is justified", 11)
+    yPos += sectionSpacing * 3
 
-    // Page 9: Incentive alignment & risk posture
-    doc.addPage()
-    yPos = 20
+    // Incentive alignment & risk posture
     addText("Incentive alignment & risk posture", 18, true)
     yPos += sectionSpacing * 2
     
@@ -441,10 +445,9 @@ function DeployPlanContent() {
     addBullet("This pilot is intentionally scoped to limit downside while preserving learning value", 11)
     yPos += sectionSpacing
     addText("The primary goal of this deployment is evidence, not certainty.", 10, false, [100, 100, 100])
+    yPos += sectionSpacing * 3
 
-    // Page 10: Decision & next step
-    doc.addPage()
-    yPos = 20
+    // Decision & next step
     addText("Decision & next step", 18, true)
     yPos += sectionSpacing * 2
     

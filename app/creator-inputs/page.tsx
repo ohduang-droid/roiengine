@@ -21,25 +21,13 @@ const formSchema = z
       required_error: "Please select a plan",
     }),
     // Conditional fields
-    newPaidPerMonth: z.coerce.number().min(0).optional(),
+    newPaidPerMonth: z.coerce.number().min(0, "Must be 0 or greater"),
     dropoffPeakWindow: z.enum(["month_1", "month_2", "month_3", "month_4_6", "not_sure"]).optional(),
   })
   .refine((data) => data.totalSubscribers >= data.paidSubscribers, {
     message: "Total subscribers must be greater than or equal to paid subscribers",
     path: ["totalSubscribers"],
   })
-  .refine(
-    (data) => {
-      if (data.planChoice === "growth_only") {
-        return data.newPaidPerMonth !== undefined && data.newPaidPerMonth >= 0
-      }
-      return true
-    },
-    {
-      message: "This field is required for Plan A",
-      path: ["newPaidPerMonth"],
-    },
-  )
   .refine(
     (data) => {
       if (data.planChoice === "growth_and_retention") {
@@ -50,6 +38,15 @@ const formSchema = z
     {
       message: "This field is required for Plan B",
       path: ["dropoffPeakWindow"],
+    },
+  )
+  .refine(
+    (data) => {
+      return data.newPaidPerMonth !== undefined && data.newPaidPerMonth >= 0
+    },
+    {
+      message: "This field is required",
+      path: ["newPaidPerMonth"],
     },
   )
 
@@ -177,10 +174,26 @@ export default function CreatorInputsPage() {
               <p className="text-sm text-muted-foreground">We'll estimate your free subscribers as: total − paid.</p>
             </div>
 
-            {/* Q3: Lifetime months */}
+            {/* Q4: New paid subscribers per month (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="newPaidPerMonth" className="text-base font-medium">
+                Q4. How many new paid subscribers on average do you get? (estimated) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="newPaidPerMonth"
+                type="number"
+                placeholder="120"
+                {...register("newPaidPerMonth")}
+                className="h-11"
+                aria-invalid={!!errors.newPaidPerMonth}
+              />
+              {errors.newPaidPerMonth && <p className="text-sm text-destructive">{errors.newPaidPerMonth.message}</p>}
+            </div>
+
+            {/* Q5: Lifetime months */}
             <div className="space-y-2">
               <Label htmlFor="avgLifetimeMonths" className="text-base font-medium">
-                Q4. How many months does a paid subscriber stay on average? <span className="text-destructive">*</span>
+                Q5. How many months does a paid subscriber stay on average? <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="avgLifetimeMonths"
@@ -196,10 +209,10 @@ export default function CreatorInputsPage() {
               )}
             </div>
 
-            {/* Q4: Revenue per subscriber */}
+            {/* Q6: Revenue per subscriber */}
             <div className="space-y-2">
               <Label htmlFor="avgRevenuePerSubscriber" className="text-base font-medium">
-                Q5. What is your average monthly revenue per paid subscriber? (USD){" "}
+                Q6. What is your average monthly revenue per paid subscriber? (USD){" "}
                 <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -226,10 +239,10 @@ export default function CreatorInputsPage() {
               <h2 className="text-xl font-semibold">Your goal</h2>
             </div>
 
-            {/* Q5: Plan choice */}
+            {/* Q7: Plan choice */}
             <div className="space-y-3">
               <Label className="text-base font-medium">
-                Q6. Which outcome do you want to improve most? <span className="text-destructive">*</span>
+                Q7. Which outcome do you want to improve most? <span className="text-destructive">*</span>
               </Label>
               <RadioGroup onValueChange={handlePlanChange} className="space-y-3">
                 {/* Plan A */}
@@ -264,33 +277,11 @@ export default function CreatorInputsPage() {
             </div>
           </div>
 
-          {/* Conditional Section: Plan A */}
-          {planChoice === "growth_only" && (
-            <div className="space-y-2">
-              <Label htmlFor="newPaidPerMonth" className="text-base font-medium">
-                Q7. In a typical month, about how many new paid subscribers do you get?{" "}
-                <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="newPaidPerMonth"
-                type="number"
-                placeholder="120"
-                {...register("newPaidPerMonth")}
-                className="h-11"
-                aria-invalid={!!errors.newPaidPerMonth}
-              />
-              {errors.newPaidPerMonth && <p className="text-sm text-destructive">{errors.newPaidPerMonth.message}</p>}
-              <p className="text-sm text-muted-foreground">
-                A rough estimate is fine. This helps us model growth uplift.
-              </p>
-            </div>
-          )}
-
           {/* Conditional Section: Plan B */}
           {planChoice === "growth_and_retention" && (
             <div className="space-y-3">
               <Label className="text-base font-medium">
-                Q7. Around which month do subscribers usually cancel? <span className="text-destructive">*</span>
+                Q8. Around which month do subscribers usually cancel? <span className="text-destructive">*</span>
               </Label>
               <RadioGroup
                 onValueChange={(value) => setValue("dropoffPeakWindow", value as any)}
