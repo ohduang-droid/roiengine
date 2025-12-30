@@ -103,6 +103,8 @@ export default function CreatorInputsPage() {
       avgLifetimeMonths: data.avgLifetimeMonths.toString(),
       arppuMonthlyUsd: data.avgRevenuePerSubscriber.toString(),
       planChoice: data.planChoice,
+      ...(data.newPaidPerMonth !== undefined && { newPaidPerMonth: data.newPaidPerMonth.toString() }),
+      ...(data.dropoffPeakWindow && { dropoffPeakWindow: data.dropoffPeakWindow }),
     })
 
     router.push(`/deploy-plan?${params.toString()}`)

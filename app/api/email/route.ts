@@ -14,6 +14,7 @@ export async function POST(req: Request) {
             avgLifetimeMonths,
             arppuMonthlyUsd,
             planChoice,
+            baselineMonthlyConversion, // Optional
             creatorName, // Optional
             pdfData // Optional base64 string
         } = await req.json();
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
             arppuMonthlyUsd,
             avgLifetimeMonths,
             planChoice,
+            baselineMonthlyConversion,
         };
 
         // Calculate ROI (logic mirrored from page.tsx)

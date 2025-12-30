@@ -59,8 +59,17 @@ function DeployPlanContent() {
   const avgLifetimeMonths = Number(searchParams.get("avgLifetimeMonths") || 7)
   const arppuMonthlyUsd = Number(searchParams.get("arppuMonthlyUsd") || 29)
   const planChoice = (searchParams.get("planChoice") || "growth_only") as "growth_only" | "growth_and_retention"
+  const newPaidPerMonth = Number(searchParams.get("newPaidPerMonth") || 0)
+  // dropoffPeakWindow is available but not used in math yet, just passed through if needed
+  // const dropoffPeakWindow = searchParams.get("dropoffPeakWindow")
 
   const freeSubscribers = Math.max(0, totalSubscribers - paidSubscribers)
+
+  // Calculate baseline conversion from Q4 if available
+  let baselineMonthlyConversion: number | undefined = undefined
+  if (newPaidPerMonth > 0 && freeSubscribers > 0) {
+    baselineMonthlyConversion = newPaidPerMonth / freeSubscribers
+  }
 
   // Use shared ROI calculation
   const roiInputs: RoiInputs = {
@@ -70,7 +79,7 @@ function DeployPlanContent() {
     arppuMonthlyUsd,
     avgLifetimeMonths,
     planChoice,
-    // baselineMonthlyConversion: undefined // use default
+    baselineMonthlyConversion, // Pass derived or undefined (will use default in lib)
   }
 
   // Adaptive Horizon Logic
@@ -171,7 +180,7 @@ function DeployPlanContent() {
     yPos += sectionSpacing * 2
     addText("A measured pilot for subscriber growth", 16, true)
     yPos += sectionSpacing * 3
-    addText(`Prepared for: ${searchParams.get("creatorName") || "Creator / Newsletter Name"}`, 12)
+    addText(`Prepared for: ${email || "Client"}`, 12)
     yPos += lineHeight * 1.5
     addText("Prepared by: Fridge Channel (FC)", 12)
     yPos += lineHeight * 1.5
@@ -466,6 +475,7 @@ function DeployPlanContent() {
           avgLifetimeMonths,
           arppuMonthlyUsd,
           planChoice,
+          baselineMonthlyConversion, // Pass this to API
           creatorName: searchParams.get("creatorName"),
           pdfData: pdfBase64,
         }),
