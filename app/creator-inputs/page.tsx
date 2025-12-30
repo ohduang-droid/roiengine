@@ -97,6 +97,7 @@ export default function CreatorInputsPage() {
     console.log("[v0] Form submitted with payload:", payload)
 
     const params = new URLSearchParams({
+      email: data.email,
       paidSubscribers: data.paidSubscribers.toString(),
       totalSubscribers: data.totalSubscribers.toString(),
       avgLifetimeMonths: data.avgLifetimeMonths.toString(),

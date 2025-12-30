@@ -1,12 +1,13 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { ArrowLeft, TrendingUp, Repeat, Info, FileDown } from "lucide-react"
+import { ArrowLeft, TrendingUp, Repeat, Info, FileDown, Mail } from "lucide-react"
 import jsPDF from "jspdf"
+import { toast } from "sonner"
 import { calculateRoi, RoiInputs, DEFAULT_CONFIG } from "@/lib/roi"
 
 // Fixed constants (Pilot)
@@ -50,6 +51,9 @@ function DeployPlanContent() {
   const router = useRouter()
 
   // Get data from URL params or use mock data
+  const email = searchParams.get("email")
+  const [isSending, setIsSending] = useState(false)
+
   const paidSubscribers = Number(searchParams.get("paidSubscribers") || 800)
   const totalSubscribers = Number(searchParams.get("totalSubscribers") || 12000)
   const avgLifetimeMonths = Number(searchParams.get("avgLifetimeMonths") || 7)
@@ -102,12 +106,16 @@ function DeployPlanContent() {
   const MAGNET_UNIT_COST_USD = DEFAULT_CONFIG.costPerMagnetUsd
   const timelineDates = generateTimelineDates()
 
+
   const handleStartPilot = () => {
     console.log("[v0] Starting pilot with upfront cost:", upfrontCostUsd)
     router.push("/checkout")
   }
 
-  const handleExportPDF = () => {
+
+
+
+  const generatePdfDoc = () => {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
@@ -424,10 +432,56 @@ function DeployPlanContent() {
     yPos += lineHeight
     addText("Fridge Channel (FC)", 12)
 
-    // Save and open PDF
+    return doc
+  }
+
+  const handleExportPDF = () => {
+    const doc = generatePdfDoc()
     const pdfBlob = doc.output("blob")
     const pdfUrl = URL.createObjectURL(pdfBlob)
     window.open(pdfUrl, "_blank")
+  }
+
+  const handleEmailToMe = async () => {
+    if (!email) {
+      toast.error("No email address found. Please go back and enter your email.")
+      return
+    }
+
+    setIsSending(true)
+    try {
+      // Generate PDF
+      const doc = generatePdfDoc()
+      const pdfBase64 = doc.output("datauristring").split(",")[1] // Remove the "data:application/pdf;base64," prefix
+
+      const response = await fetch("/api/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          paidSubscribers,
+          totalSubscribers,
+          avgLifetimeMonths,
+          arppuMonthlyUsd,
+          planChoice,
+          creatorName: searchParams.get("creatorName"),
+          pdfData: pdfBase64,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to send email")
+      }
+
+      toast.success("Email sent successfully!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to send email. Please try again.")
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const planName = planChoice === "growth_only" ? "Plan A — Growth Only" : "Plan B — Growth + Retention"
@@ -633,8 +687,15 @@ function DeployPlanContent() {
             <FileDown className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
-          <Button size="lg" onClick={handleStartPilot} className="sm:min-w-[200px]">
-            Email to me
+          <Button size="lg" onClick={handleEmailToMe} disabled={isSending} className="sm:min-w-[200px]">
+            {isSending ? (
+              <>Sending...</>
+            ) : (
+              <>
+                <Mail className="mr-2 h-4 w-4" />
+                Email to me
+              </>
+            )}
           </Button>
         </div>
       </div>
