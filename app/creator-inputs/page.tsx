@@ -77,6 +77,18 @@ export default function CreatorInputsPage() {
     setValue("planChoice", newPlan)
   }
 
+  // 禁用滚轮改变数字输入框的值
+  const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur()
+  }
+
+  // 阻止输入负数
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+") {
+      e.preventDefault()
+    }
+  }
+
   const onSubmit = (data: FormData) => {
     const payload = {
       email: data.email,
@@ -152,10 +164,13 @@ export default function CreatorInputsPage() {
               <Input
                 id="paidSubscribers"
                 type="number"
+                min="0"
                 placeholder="800"
                 {...register("paidSubscribers")}
                 className="h-11"
                 aria-invalid={!!errors.paidSubscribers}
+                onWheel={handleWheel}
+                onKeyDown={handleKeyDown}
               />
               {errors.paidSubscribers && <p className="text-sm text-destructive">{errors.paidSubscribers.message}</p>}
             </div>
@@ -168,10 +183,13 @@ export default function CreatorInputsPage() {
               <Input
                 id="totalSubscribers"
                 type="number"
+                min="0"
                 placeholder="12000"
                 {...register("totalSubscribers")}
                 className="h-11"
                 aria-invalid={!!errors.totalSubscribers}
+                onWheel={handleWheel}
+                onKeyDown={handleKeyDown}
               />
               {errors.totalSubscribers && <p className="text-sm text-destructive">{errors.totalSubscribers.message}</p>}
               <p className="text-sm text-muted-foreground">We'll estimate your free subscribers as: total − paid.</p>
@@ -185,10 +203,13 @@ export default function CreatorInputsPage() {
               <Input
                 id="newPaidPerMonth"
                 type="number"
+                min="0"
                 placeholder="120"
                 {...register("newPaidPerMonth")}
                 className="h-11"
                 aria-invalid={!!errors.newPaidPerMonth}
+                onWheel={handleWheel}
+                onKeyDown={handleKeyDown}
               />
               {errors.newPaidPerMonth && <p className="text-sm text-destructive">{errors.newPaidPerMonth.message}</p>}
             </div>
@@ -201,11 +222,14 @@ export default function CreatorInputsPage() {
               <Input
                 id="avgLifetimeMonths"
                 type="number"
+                min="1"
                 step="0.1"
                 placeholder="7"
                 {...register("avgLifetimeMonths")}
                 className="h-11"
                 aria-invalid={!!errors.avgLifetimeMonths}
+                onWheel={handleWheel}
+                onKeyDown={handleKeyDown}
               />
               {errors.avgLifetimeMonths && (
                 <p className="text-sm text-destructive">{errors.avgLifetimeMonths.message}</p>
@@ -221,11 +245,14 @@ export default function CreatorInputsPage() {
               <Input
                 id="avgRevenuePerSubscriber"
                 type="number"
+                min="0"
                 step="0.01"
                 placeholder="29"
                 {...register("avgRevenuePerSubscriber")}
                 className="h-11"
                 aria-invalid={!!errors.avgRevenuePerSubscriber}
+                onWheel={handleWheel}
+                onKeyDown={handleKeyDown}
               />
               {errors.avgRevenuePerSubscriber && (
                 <p className="text-sm text-destructive">{errors.avgRevenuePerSubscriber.message}</p>
