@@ -5,7 +5,7 @@ import { Suspense, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { ArrowLeft, TrendingUp, Repeat, Info, FileDown, Mail } from "lucide-react"
+import { ArrowLeft, TrendingUp, Repeat, Info, Mail } from "lucide-react"
 import jsPDF from "jspdf"
 import { toast } from "sonner"
 import { calculateRoi, RoiInputs, DEFAULT_CONFIG } from "@/lib/roi"
@@ -693,10 +693,6 @@ function DeployPlanContent() {
       {/* Sticky footer CTA */}
       <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-4xl items-center justify-end gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <Button size="lg" onClick={handleExportPDF} variant="outline" className="sm:min-w-[200px]">
-            <FileDown className="mr-2 h-4 w-4" />
-            Export PDF
-          </Button>
           <Button size="lg" onClick={handleEmailToMe} disabled={isSending} className="sm:min-w-[200px]">
             {isSending ? (
               <>Sending...</>
